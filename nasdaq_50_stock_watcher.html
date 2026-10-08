@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="hu" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NASDAQ 50 Részvény Élő Figyelő & Chartok</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        cardBg: '#131c2e',
+                        cardHover: '#1e293b',
+                        borderCol: '#1f293d',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0f19; }
+        ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-darkBg text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+    <!-- HEADER -->
+    <header class="border-b border-borderCol bg-cardBg/90 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-chart-line text-white text-sm sm:text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm sm:text-lg tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">NASDAQ 50</h1>
+                    <span class="text-[10px] sm:text-xs text-emerald-400 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse"></span> Élő Monitor
+                    </span>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button onclick="openSettingsModal()" class="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-xs sm:text-sm font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-key text-indigo-400"></i>
+                    <span class="hidden xs:inline">API</span>
+                </button>
+                <button onclick="fetchAllData()" id="refresh-btn" class="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs sm:text-sm font-medium transition shadow-lg shadow-indigo-600/20 flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate" id="refresh-icon"></i>
+                    <span class="hidden xs:inline">Frissítés</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 flex-grow w-full">
+        
+        <!-- MARKET SUMMARY OVERVIEW -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 mb-6 sm:mb-8">
+            <!-- Market Mood Card -->
+            <div class="bg-cardBg border border-borderCol rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl pointer-events-none"></div>
+                <div>
+                    <div class="text-[11px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Piaci Hangulat (Top 50)</div>
+                    <div id="market-mood-value" class="text-xl sm:text-2xl font-bold tracking-tight">Betöltés...</div>
+                </div>
+                <div class="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-[11px] sm:text-xs text-slate-400">
+                    <span id="market-mood-desc">NASDAQ Összesített</span>
+                    <i class="fa-solid fa-chart-pie text-indigo-400"></i>
+                </div>
+            </div>
+
+            <!-- Top Gainer Card -->
+            <div class="bg-cardBg border border-borderCol rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
+                <div>
+                    <div class="text-[11px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Legnagyobb Növekedés</div>
+                    <div id="top-gainer" class="text-base sm:text-xl font-bold tracking-tight text-emerald-400 truncate">-</div>
+                </div>
+                <div class="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-[11px] sm:text-xs text-slate-400">
+                    <span id="top-gainer-val">Napi +0.00%</span>
+                    <i class="fa-solid fa-arrow-trend-up text-emerald-400"></i>
+                </div>
+            </div>
+
+            <!-- Top Loser Card -->
+            <div class="bg-cardBg border border-borderCol rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-rose-500/10 rounded-full blur-xl pointer-events-none"></div>
+                <div>
+                    <div class="text-[11px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Legnagyobb Csökkenés</div>
+                    <div id="top-loser" class="text-base sm:text-xl font-bold tracking-tight text-rose-400 truncate">-</div>
+                </div>
+                <div class="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-[11px] sm:text-xs text-slate-400">
+                    <span id="top-loser-val">Napi 0.00%</span>
+                    <i class="fa-solid fa-arrow-trend-down text-rose-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTROLS & FILTER BAR -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 mb-5 sm:mb-6">
+            <div class="relative w-full sm:w-80">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <i class="fa-solid fa-search text-xs"></i>
+                </span>
+                <input type="text" id="search-input" oninput="filterStocks()" placeholder="Keresés szimbólum vagy név..." 
+                    class="w-full bg-cardBg border border-borderCol rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 transition shadow-inner">
+            </div>
+
+            <div class="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                <button onclick="setFilter('all')" id="filter-all" class="px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition shadow-sm whitespace-nowrap">Összes (50)</button>
+                <button onclick="setFilter('gainers')" id="filter-gainers" class="px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition whitespace-nowrap">Nyertesek</button>
+                <button onclick="setFilter('losers')" id="filter-losers" class="px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition whitespace-nowrap">Vesztesek</button>
+            </div>
+        </div>
+
+        <!-- MOBILE CARDS VIEW (Visible on mobile < md) -->
+        <div id="stock-cards-container" class="grid grid-cols-1 xs:grid-cols-2 gap-3 md:hidden mb-12">
+            <!-- Filled by JS -->
+        </div>
+
+        <!-- DESKTOP TABLE VIEW (Visible on md and larger) -->
+        <div class="hidden md:block bg-cardBg border border-borderCol rounded-2xl shadow-2xl overflow-hidden mb-12">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-borderCol text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-900/40">
+                            <th class="py-4 px-6">Szimbólum</th>
+                            <th class="py-4 px-6">Vállalat Neve</th>
+                            <th class="py-4 px-6 text-right">Árfolyam (USD)</th>
+                            <th class="py-4 px-6 text-right">Változás ($)</th>
+                            <th class="py-4 px-6 text-right">Változás (%)</th>
+                            <th class="py-4 px-6 text-center">Interakció</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-table-body" class="divide-y divide-borderCol text-sm">
+                        <!-- Filled by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- DETAIL MODAL & CHART -->
+    <div id="stock-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-borderCol w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[92vh]" id="modal-container">
+            <!-- Modal Header -->
+            <div class="px-4 sm:px-6 py-3.5 border-b border-borderCol flex items-center justify-between bg-cardBg/90 flex-shrink-0">
+                <div class="flex items-center space-x-3 truncate">
+                    <div id="modal-symbol-badge" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 font-bold flex items-center justify-center text-xs sm:text-sm flex-shrink-0">
+                        AAPL
+                    </div>
+                    <div class="truncate">
+                        <h3 id="modal-title" class="font-bold text-sm sm:text-lg text-white truncate">Apple Inc.</h3>
+                        <span id="modal-subtitle" class="text-[11px] sm:text-xs text-slate-400">NASDAQ: AAPL</span>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition flex-shrink-0">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable on small devices) -->
+            <div class="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-grow">
+                <!-- Stock Quick Stats -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+                    <div class="bg-cardBg border border-borderCol p-3 rounded-xl">
+                        <span class="text-[10px] sm:text-xs text-slate-400 block mb-1">Aktuális Ár</span>
+                        <span id="modal-current-price" class="text-base sm:text-lg font-bold text-white">$0.00</span>
+                    </div>
+                    <div class="bg-cardBg border border-borderCol p-3 rounded-xl">
+                        <span class="text-[10px] sm:text-xs text-slate-400 block mb-1">Napi Változás</span>
+                        <span id="modal-change" class="text-base sm:text-lg font-bold text-emerald-400">+$0.00</span>
+                    </div>
+                    <div class="bg-cardBg border border-borderCol p-3 rounded-xl">
+                        <span class="text-[10px] sm:text-xs text-slate-400 block mb-1">Napi Nyitás</span>
+                        <span id="modal-open" class="text-xs sm:text-sm font-semibold text-slate-200">$0.00</span>
+                    </div>
+                    <div class="bg-cardBg border border-borderCol p-3 rounded-xl">
+                        <span class="text-[10px] sm:text-xs text-slate-400 block mb-1">Előző Záró</span>
+                        <span id="modal-prev-close" class="text-xs sm:text-sm font-semibold text-slate-200">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Chart Timeframe Selector -->
+                <div class="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2.5">
+                    <span class="text-[11px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Árfolyam Előzmény</span>
+                    <div class="flex items-center bg-cardBg border border-borderCol p-1 rounded-xl w-full xs:w-auto justify-between xs:justify-start">
+                        <button onclick="changeTimeframe('1D')" id="tf-1D" class="flex-1 xs:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">1N</button>
+                        <button onclick="changeTimeframe('1W')" id="tf-1W" class="flex-1 xs:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">1H</button>
+                        <button onclick="changeTimeframe('1M')" id="tf-1M" class="flex-1 xs:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-400 bg-indigo-600/20 transition">1Hó</button>
+                        <button onclick="changeTimeframe('1Y')" id="tf-1Y" class="flex-1 xs:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">1Év</button>
+                    </div>
+                </div>
+
+                <!-- Chart Canvas Container -->
+                <div class="bg-cardBg border border-borderCol p-3 sm:p-4 rounded-xl relative h-60 sm:h-72">
+                    <canvas id="stockChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-4 sm:px-6 py-3 border-t border-borderCol bg-cardBg/90 flex justify-end flex-shrink-0">
+                <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium transition w-full sm:w-auto">Bezárás</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-borderCol w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300" id="settings-container">
+            <div class="px-5 py-4 border-b border-borderCol flex items-center justify-between bg-cardBg/90">
+                <h3 class="font-bold text-sm sm:text-base text-white">Finnhub API Kulcs Beállítása</h3>
+                <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 sm:p-6 space-y-4">
+                <p class="text-xs text-slate-400 leading-relaxed">
+                    Add meg a saját ingyenes <a href="https://finnhub.io/" target="_blank" class="text-indigo-400 underline hover:text-indigo-300">Finnhub.io</a> API kulcsodat. Ha üresen hagyod, az alkalmazás szimulált demo adatokkal működik.
+                </p>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">API Kulcs</label>
+                    <input type="text" id="api-key-input" placeholder="pl. c3a...v2h" 
+                        class="w-full bg-cardBg border border-borderCol rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 transition">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium transition">Mégse</button>
+                    <button onclick="saveApiKey()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold transition shadow-lg shadow-indigo-600/20">Mentés & Frissítés</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const nasdaqStocks = [
+            { symbol: "AAPL", name: "Apple Inc." },
+            { symbol: "MSFT", name: "Microsoft Corporation" },
+            { symbol: "GOOGL", name: "Alphabet Inc." },
+            { symbol: "AMZN", name: "Amazon.com, Inc." },
+            { symbol: "NVDA", name: "NVIDIA Corporation" },
+            { symbol: "META", name: "Meta Platforms, Inc." },
+            { symbol: "TSLA", name: "Tesla, Inc." },
+            { symbol: "NFLX", name: "Netflix, Inc." },
+            { symbol: "AMD", name: "Advanced Micro Devices" },
+            { symbol: "INTC", name: "Intel Corporation" },
+            { symbol: "ADBE", name: "Adobe Inc." },
+            { symbol: "CMCSA", name: "Comcast Corporation" },
+            { symbol: "PEP", name: "PepsiCo, Inc." },
+            { symbol: "COST", name: "Costco Wholesale Corp" },
+            { symbol: "AVGO", name: "Broadcom Inc." },
+            { symbol: "CSCO", name: "Cisco Systems, Inc." },
+            { symbol: "TMUS", name: "T-Mobile US, Inc." },
+            { symbol: "QCOM", name: "QUALCOMM Inc." },
+            { symbol: "TXN", name: "Texas Instruments" },
+            { symbol: "AMGN", name: "Amgen Inc." },
+            { symbol: "HON", name: "Honeywell Intl" },
+            { symbol: "SBUX", name: "Starbucks Corp" },
+            { symbol: "INTU", name: "Intuit Inc." },
+            { symbol: "ISRG", name: "Intuitive Surgical" },
+            { symbol: "GILD", name: "Gilead Sciences" },
+            { symbol: "MDLZ", name: "Mondelez Intl" },
+            { symbol: "BKNG", name: "Booking Holdings" },
+            { symbol: "ADI", name: "Analog Devices" },
+            { symbol: "LRCX", name: "Lam Research" },
+            { symbol: "VRTX", name: "Vertex Pharma" },
+            { symbol: "REGN", name: "Regeneron Pharma" },
+            { symbol: "PYPL", name: "PayPal Holdings" },
+            { symbol: "MU", name: "Micron Technology" },
+            { symbol: "SNPS", name: "Synopsys, Inc." },
+            { symbol: "CDNS", name: "Cadence Design" },
+            { symbol: "ASML", name: "ASML Holding N.V." },
+            { symbol: "CSX", name: "CSX Corporation" },
+            { symbol: "MAR", name: "Marriott Intl" },
+            { symbol: "ORLY", name: "O'Reilly Auto" },
+            { symbol: "CTAS", name: "Cintas Corp" },
+            { symbol: "MNST", name: "Monster Beverage" },
+            { symbol: "MELI", name: "MercadoLibre" },
+            { symbol: "KLAC", name: "KLA Corporation" },
+            { symbol: "PANW", name: "Palo Alto Networks" },
+            { symbol: "ABNB", name: "Airbnb, Inc." },
+            { symbol: "CHTR", name: "Charter Comm." },
+            { symbol: "PDD", name: "PDD Holdings" },
+            { symbol: "LULU", name: "Lululemon Athletica" },
+            { symbol: "ODFL", name: "Old Dominion Freight" },
+            { symbol: "NXPI", name: "NXP Semiconductors" }
+        ];
+
+        let stockDataStore = [];
+        let currentFilter = 'all';
+        let activeStockSymbol = null;
+        let currentTimeframe = '1M';
+        let stockChartInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedKey = localStorage.getItem('finnhub_api_key');
+            if (savedKey) {
+                document.getElementById('api-key-input').value = savedKey;
+            }
+            fetchAllData();
+        });
+
+        function getApiKey() {
+            return localStorage.getItem('finnhub_api_key') || '';
+        }
+
+        async function fetchAllData() {
+            const apiKey = getApiKey();
+            const refreshIcon = document.getElementById('refresh-icon');
+            refreshIcon.classList.add('fa-spin');
+
+            stockDataStore = [];
+
+            for (let i = 0; i < nasdaqStocks.length; i++) {
+                const stock = nasdaqStocks[i];
+                let price = 0, change = 0, changePercent = 0, open = 0, prevClose = 0;
+
+                if (apiKey) {
+                    try {
+                        const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${stock.symbol}&token=${apiKey}`);
+                        const data = await res.json();
+                        if (data && data.c) {
+                            price = data.c;
+                            change = data.d || 0;
+                            changePercent = data.dp || 0;
+                            open = data.o || price;
+                            prevClose = data.pc || (price - change);
+                        } else {
+                            throw new Error('Invalid');
+                        }
+                    } catch (e) {
+                        const basePrice = 45 + (i * 31) % 450;
+                        const randChange = (Math.random() * 7 - 3.4);
+                        price = Number((basePrice + randChange).toFixed(2));
+                        change = Number(randChange.toFixed(2));
+                        changePercent = Number(((randChange / basePrice) * 100).toFixed(2));
+                        open = Number((basePrice - (randChange * 0.4)).toFixed(2));
+                        prevClose = Number((basePrice - randChange).toFixed(2));
+                    }
+                } else {
+                    const seedVal = (stock.symbol.charCodeAt(0) * 11 + stock.symbol.charCodeAt(1) * 5) % 380 + 40;
+                    const randChange = Number((Math.sin(i + Date.now() / 9000) * 10 + (Math.random() * 3 - 1.5)).toFixed(2));
+                    price = Number((seedVal + randChange).toFixed(2));
+                    change = randChange;
+                    changePercent = Number(((randChange / seedVal) * 100).toFixed(2));
+                    open = Number((seedVal - randChange * 0.3).toFixed(2));
+                    prevClose = Number((seedVal - randChange).toFixed(2));
+                }
+
+                stockDataStore.push({
+                    symbol: stock.symbol,
+                    name: stock.name,
+                    price: price,
+                    change: change,
+                    changePercent: changePercent,
+                    open: open,
+                    prevClose: prevClose
+                });
+            }
+
+            refreshIcon.classList.remove('fa-spin');
+            renderViews();
+            updateSummaryCards();
+        }
+
+        function renderViews() {
+            renderCards();
+            renderTable();
+        }
+
+        function getFilteredStocks() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            let filtered = stockDataStore.filter(s => 
+                s.symbol.toLowerCase().includes(query) || s.name.toLowerCase().includes(query)
+            );
+
+            if (currentFilter === 'gainers') {
+                filtered = filtered.filter(s => s.change >= 0);
+            } else if (currentFilter === 'losers') {
+                filtered = filtered.filter(s => s.change < 0);
+            }
+            return filtered;
+        }
+
+        // Render Mobile Cards View
+        function renderCards() {
+            const container = document.getElementById('stock-cards-container');
+            const filtered = getFilteredStocks();
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-xs">Nincs találat a keresési feltételeknek.</div>`;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(stock => {
+                const isPos = stock.change >= 0;
+                const sign = isPos ? '+' : '';
+                const colorClass = isPos ? 'text-emerald-400' : 'text-rose-400';
+                const badgeBg = isPos ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400';
+
+                html += `
+                    <div onclick="openStockModal('${stock.symbol}')" class="bg-cardBg border border-borderCol rounded-2xl p-4 shadow-lg active:scale-98 transition cursor-pointer flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-bold">${stock.symbol}</span>
+                            <span class="px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeBg}">
+                                ${sign}${stock.changePercent.toFixed(2)}%
+                            </span>
+                        </div>
+                        <div class="mb-3 truncate">
+                            <div class="text-xs text-slate-400 truncate">${stock.name}</div>
+                        </div>
+                        <div class="flex items-end justify-between pt-2 border-t border-slate-800/80">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block">Árfolyam</span>
+                                <span class="text-sm font-mono font-bold text-white">$${stock.price.toFixed(2)}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] text-slate-400 block">Változás</span>
+                                <span class="text-xs font-mono font-semibold ${colorClass}">${sign}${stock.change.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Render Desktop Table View
+        function renderTable() {
+            const tbody = document.getElementById('stock-table-body');
+            const filtered = getFilteredStocks();
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">Nincs találat a keresési feltételeknek.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(stock => {
+                const isPos = stock.change >= 0;
+                const sign = isPos ? '+' : '';
+                const colorClass = isPos ? 'text-emerald-400' : 'text-rose-400';
+                const badgeBg = isPos ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400';
+
+                html += `
+                    <tr onclick="openStockModal('${stock.symbol}')" class="hover:bg-slate-800/50 cursor-pointer transition">
+                        <td class="py-4 px-6 font-bold">
+                            <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs">${stock.symbol}</span>
+                        </td>
+                        <td class="py-4 px-6 font-medium text-slate-200">${stock.name}</td>
+                        <td class="py-4 px-6 text-right font-mono font-semibold">$${stock.price.toFixed(2)}</td>
+                        <td class="py-4 px-6 text-right font-mono font-semibold ${colorClass}">${sign}${stock.change.toFixed(2)}</td>
+                        <td class="py-4 px-6 text-right">
+                            <span class="inline-block px-2.5 py-1 rounded-lg text-xs font-bold border ${badgeBg}">
+                                ${sign}${stock.changePercent.toFixed(2)}%
+                            </span>
+                        </td>
+                        <td class="py-4 px-6 text-center">
+                            <button class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-400 transition flex items-center justify-center mx-auto">
+                                <i class="fa-solid fa-chart-line text-xs"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function updateSummaryCards() {
+            if (stockDataStore.length === 0) return;
+
+            let totalChange = 0;
+            let topGainer = stockDataStore[0];
+            let topLoser = stockDataStore[0];
+
+            stockDataStore.forEach(s => {
+                totalChange += s.changePercent;
+                if (s.changePercent > topGainer.changePercent) topGainer = s;
+                if (s.changePercent < topLoser.changePercent) topLoser = s;
+            });
+
+            const avgChange = totalChange / stockDataStore.length;
+            const moodEl = document.getElementById('market-mood-value');
+
+            if (avgChange >= 0) {
+                moodEl.innerHTML = `Bika Piac (+${avgChange.toFixed(2)}%)`;
+                moodEl.className = "text-xl sm:text-2xl font-bold tracking-tight text-emerald-400";
+            } else {
+                moodEl.innerHTML = `Medve Piac (${avgChange.toFixed(2)}%)`;
+                moodEl.className = "text-xl sm:text-2xl font-bold tracking-tight text-rose-400";
+            }
+
+            document.getElementById('top-gainer').innerText = `${topGainer.symbol} (${topGainer.name})`;
+            document.getElementById('top-gainer-val').innerText = `Napi +${topGainer.changePercent.toFixed(2)}%`;
+
+            document.getElementById('top-loser').innerText = `${topLoser.symbol} (${topLoser.name})`;
+            document.getElementById('top-loser-val').innerText = `Napi ${topLoser.changePercent.toFixed(2)}%`;
+        }
+
+        function setFilter(type) {
+            currentFilter = type;
+            ['all', 'gainers', 'losers'].forEach(t => {
+                const btn = document.getElementById(`filter-${t}`);
+                if (t === type) {
+                    btn.className = "px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition shadow-sm whitespace-nowrap";
+                } else {
+                    btn.className = "px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition whitespace-nowrap";
+                }
+            });
+            renderViews();
+        }
+
+        function filterStocks() {
+            renderViews();
+        }
+
+        function openStockModal(symbol) {
+            const stock = stockDataStore.find(s => s.symbol === symbol);
+            if (!stock) return;
+
+            activeStockSymbol = symbol;
+            document.getElementById('modal-symbol-badge').innerText = stock.symbol;
+            document.getElementById('modal-title').innerText = stock.name;
+            document.getElementById('modal-subtitle').innerText = `NASDAQ: ${stock.symbol}`;
+            document.getElementById('modal-current-price').innerText = `$${stock.price.toFixed(2)}`;
+            
+            const isPos = stock.change >= 0;
+            const sign = isPos ? '+' : '';
+            const changeEl = document.getElementById('modal-change');
+            changeEl.innerText = `${sign}${stock.change.toFixed(2)} (${sign}${stock.changePercent.toFixed(2)}%)`;
+            changeEl.className = `text-base sm:text-lg font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            document.getElementById('modal-open').innerText = `$${stock.open.toFixed(2)}`;
+            document.getElementById('modal-prev-close').innerText = `$${stock.prevClose.toFixed(2)}`;
+
+            const modal = document.getElementById('stock-modal');
+            const container = document.getElementById('modal-container');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                container.classList.remove('scale-95');
+                container.classList.add('scale-100');
+            }, 10);
+
+            renderChart(stock);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('stock-modal');
+            const container = document.getElementById('modal-container');
+            modal.classList.add('opacity-0');
+            container.classList.remove('scale-100');
+            container.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                if (stockChartInstance) {
+                    stockChartInstance.destroy();
+                    stockChartInstance = null;
+                }
+            }, 300);
+        }
+
+        function changeTimeframe(tf) {
+            currentTimeframe = tf;
+            ['1D', '1W', '1M', '1Y'].forEach(t => {
+                const btn = document.getElementById(`tf-${t}`);
+                if (t === tf) {
+                    btn.className = "flex-1 xs:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-400 bg-indigo-600/20 transition";
+                } else {
+                    btn.className = "flex-1 xs:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+                }
+            });
+
+            const stock = stockDataStore.find(s => s.symbol === activeStockSymbol);
+            if (stock) renderChart(stock);
+        }
+
+        function renderChart(stock) {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            if (stockChartInstance) {
+                stockChartInstance.destroy();
+            }
+
+            let labels = [];
+            let dataPoints = [];
+            let count = 12;
+
+            if (currentTimeframe === '1D') {
+                count = 14;
+                labels = ["09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00"];
+            } else if (currentTimeframe === '1W') {
+                count = 5;
+                labels = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"];
+            } else if (currentTimeframe === '1M') {
+                count = 20;
+                for (let i = 20; i >= 1; i--) labels.push(`${i} napja`);
+            } else if (currentTimeframe === '1Y') {
+                count = 12;
+                labels = ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szep", "Okt", "Nov", "Dec"];
+            }
+
+            let baseVal = stock.price * 0.92;
+            for (let i = 0; i < count; i++) {
+                const variance = (Math.sin(i + stock.price) * (stock.price * 0.025));
+                let val = baseVal + (i * ((stock.price - baseVal) / count)) + variance;
+                if (i === count - 1) val = stock.price;
+                dataPoints.push(Number(val.toFixed(2)));
+            }
+
+            const isPositive = stock.change >= 0;
+            const lineColor = isPositive ? '#10b981' : '#f43f5e';
+            const gradientBg = ctx.createLinearGradient(0, 0, 0, 220);
+            gradientBg.addColorStop(0, isPositive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)');
+            gradientBg.addColorStop(1, 'rgba(19, 28, 46, 0.0)');
+
+            stockChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: stock.symbol,
+                        data: dataPoints,
+                        borderColor: lineColor,
+                        borderWidth: 2,
+                        backgroundColor: gradientBg,
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 2.5,
+                        pointBackgroundColor: lineColor
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#38bdf8',
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            padding: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` Árfolyam: $${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(31, 41, 61, 0.4)' },
+                            ticks: { color: '#94a3b8', font: { size: 10 }, maxTicksLimit: 6 }
+                        },
+                        y: {
+                            grid: { color: 'rgba(31, 41, 61, 0.4)' },
+                            ticks: { 
+                                color: '#94a3b8', 
+                                font: { size: 10 },
+                                callback: function(value) { return '$' + value; }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function openSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            const container = document.getElementById('settings-container');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                container.classList.remove('scale-95');
+                container.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            const container = document.getElementById('settings-container');
+            modal.classList.add('opacity-0');
+            container.classList.remove('scale-100');
+            container.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem('finnhub_api_key', key);
+            closeSettingsModal();
+            fetchAllData();
+        }
+    </script>
+</body>
+</html>
